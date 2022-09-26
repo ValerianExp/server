@@ -9,7 +9,7 @@ const TripSchema = {
     isFinished: { type: Boolean, default: false }
 }
 
-// TripSchema.index({ from: '2dsphere' });
+// TripSchema.index({ from: '2dsphere', to: '2dsphere' });
 // TripSchema.index({ to: '2dsphere' });
 
 const TripModel = model('trips', TripSchema)

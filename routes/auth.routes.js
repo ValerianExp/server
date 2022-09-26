@@ -1,50 +1,77 @@
-const UserModel = require("../models/User.model");
 const router = require("express").Router();
-const bcrypt = require("bcrypt");
+const SALT = Number(process.env.SALT);
+const bcrypt = require('bcryptjs');
+const UserModel = require('../models/User.model');
+const { DRIVER, CLIENT } = require("../const");
 
-router.get("/", (req, res, next) => {
-  res.json("All good in here");
+
+// You put the next routes here 👇
+// example: router.use("/auth", authRoutes)
+
+//GET ROUTE SIGNUP
+router.get("/signup", (req, res, next) => {
+  // res.json("");
+  res.json("auth/signup");
 });
 
-router.post('/login', (req, res, next) => {
-  const { username, password } = req.body
 
-  UserModel.findOne({ username })
-    .then((user) => {
-      console.log('Trying to log in with ', user)
-      if (!user) {
-        return res.status(400).json({ errorMessage: "Wrong credentials." });
-      }
-      bcrypt.compare(password, user.password).then((isSamePassword) => {
-        if (!isSamePassword) {
-          return res.status(400).json({ errorMessage: "Wrong credentials." });
+//POST ROUTE SIGNUP
+router.post("/signup", (req, res, next) => {
+  const { email, username, password, avatar, credit, oldTrips, role, rating, carModel, carImg } = req.body;
+  if (!username || !password) {
+    res.status(400).json({ message: "All fields are mandatory" });
+    return;
+  }
+  const regex = /(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,}/;
+  if (!regex.test(password)) {
+    res.status(400).json({
+      message:
+        "Password needs to have at least 6 chars and must contain at least one number, one lowercase and one uppercase letter.",
+    });
+    return;
+  }
+  const salt = bcrypt.genSaltSync(SALT);
+  const hashPass = bcrypt.hashSync(password, salt);
+  if (user === "driver") {
+    UserModel.create({ email, username, password: hashPass, avatar, credit, oldTrips, role: DRIVER, rating, carModel, carImg })
+      .then((user) => {
+        user.password = "*";
+        res.status(200).json(user);
+      })
+      .catch((err) => {
+        if (err.code === 11000) {
+          res.status(400).json({
+            message: "Username needs to be unique. Username is already in use.",
+          });
+        } else {
+          res.status(500).json({ message: "Something went wrong" });
         }
-        req.session.user = user; // ??????
-        // req.session.user = user._id; // ! better and safer but in this case we saving the entire user object
-        console.log('Logged correctly ', user.username)
-        return res.status(200).json(user);
       });
-    })
-    .catch(err => {
-      console.log('Error while logging in: ', err)
-      res.sendStatus(500)
-    })
+  }
+  if (user === "client") {
+    UserModel.create({ email, username, password: hashPass, avatar, credit, oldTrips, role: CLIENT })
+      .then((user) => {
+        user.password = "*";
+        res.status(200).json(user);
+      })
+      .catch((err) => {
+        if (err.code === 11000) {
+          res.status(400).json({
+            message: "Username needs to be unique. Username is already in use.",
+          });
+        } else {
+          res.status(500).json({ message: "Something went wrong" });
+        }
+      });
+  }
+});
 
-})
-
-router.delete('/delete/:id', (req, res, next) => {
-  const userId = req.params('id')
-  UserModel.findByIdAndRemove(userId)
-    .then(() => {
-      console.log('User with id ', userId, ' deleted')
-      res.sendStatus(200)
-    })
-    .catch(err => {
-      console.log('Error while deleting user: ', err)
-      res.sendStatus(500)
-    })
-})
-
+// CLOSE SESSION
+router.post("/logout", (req, res, next) => {
+  // req.session.destroy();
+  //TODO: tokens
+  res.status(204).send({ message: "Logged out" });
+});
 
 
 
