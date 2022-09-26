@@ -5,7 +5,7 @@ const TripSchema = {
     to: { type: { type: { type: String }, coordinates: [Number] }, index: '2dsphere' },
     price: { type: Number },
     client: { type: Schema.Types.ObjectId, ref: 'users' },
-    driver: { type: Schema.Types.ObjectId, ref: 'users' },
+    driver: { type: Schema.Types.ObjectId, ref: 'users', default: null },
     isFinished: { type: Boolean, default: false }
 }
 
