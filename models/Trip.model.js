@@ -1,15 +1,15 @@
 const { Schema, model } = require("mongoose");
 
-const TripSchema = {
-    from: { type: { type: { type: String }, coordinates: [Number] }, index: '2dsphere' },
-    to: { type: { type: { type: String }, coordinates: [Number] }, index: '2dsphere' },
+const TripSchema = new Schema({
+    from: { type: { type: { type: String }, coordinates: [Number] } },
+    to: { type: { type: { type: String }, coordinates: [Number] } },
     price: { type: Number },
     client: { type: Schema.Types.ObjectId, ref: 'users' },
     driver: { type: Schema.Types.ObjectId, ref: 'users', default: null },
     isFinished: { type: Boolean, default: false }
-}
+})
 
-// TripSchema.index({ from: '2dsphere', to: '2dsphere' });
+TripSchema.index({ from: '2dsphere', to: '2dsphere' });
 // TripSchema.index({ to: '2dsphere' });
 
 const TripModel = model('trips', TripSchema)

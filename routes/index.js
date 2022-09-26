@@ -1,5 +1,10 @@
 module.exports = (app) => {
-    app.use('/api/auth', require('./auth.routes'));
-    app.use('/api/user', require('./user.routes'));
-    app.use('/api/trip', require('./trip.routes'));
+    const authRoutes = require('./auth.routes')
+    app.use('/api/auth', authRoutes);
+
+    // const userRoutes = require('./user.routes')
+    // app.use('/api/user', userRoutes);
+
+    const tripRoutes = require('./trip.routes')
+    app.use('/api/trip', tripRoutes);
 }

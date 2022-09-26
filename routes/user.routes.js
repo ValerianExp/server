@@ -9,3 +9,5 @@ const {
 router.get('/:id', getUser);
 router.put('/:id', editUser);
 router.delete('/:id', deleteUser);
+
+module.exports = router
