@@ -1,8 +1,8 @@
 const { Schema, model } = require("mongoose");
 
 const TripSchema = new Schema({
-    from: { type: { type: { type: String }, coordinates: [Number] } },
-    to: { type: { type: { type: String }, coordinates: [Number] } },
+    from: { type: { type: String }, coordinates: [Number] },
+    to: { type: { type: String }, coordinates: [Number] },
     price: { type: Number },
     client: { type: Schema.Types.ObjectId, ref: 'users' },
     driver: { type: Schema.Types.ObjectId, ref: 'users', default: null },

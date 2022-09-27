@@ -12,19 +12,28 @@ const getAll = (req, res, next) => {
 
 const create = (req, res, next) => {
     const {
-        from,
-        to,
+        from_lat,
+        from_lng,
+        to_lat,
+        to_lng,
         price,
         client,
     } = req.body;
     console.log(req.body);
 
-    tripModel.create({
-        from,
-        to,
-        price,
-        client,
-    })
+    tripModel
+        .create({
+            from: {
+                type: 'Point',
+                coordinates: [from_lng, from_lat],
+            },
+            to: {
+                type: 'Point',
+                coordinates: [to_lng, to_lat]
+            },
+            price,
+            client,
+        })
         .then(() => {
             res.sendStatus(201);
         })
@@ -38,11 +47,13 @@ const setDriver = (req, res, next) => {
         if (!isValidObjectId(id)) {
             throw new Error('Error: Invalid mongo ID');
         }
+        console.log(driverId);
+        console.log(id);
         tripModel
             .findByIdAndUpdate(id, { driver: driverId }, { new: true })
             .then((trip) => {
                 console.log('The updated trip is ', trip)
-                res.sendStatus(204);
+                res.status(200).json({ trip });
             })
             .catch(next);
     } catch (err) {
@@ -52,10 +63,17 @@ const setDriver = (req, res, next) => {
 
 const finishTrip = async (req, res, next) => {
     try {
-        const { tripId } = req.params
-        const updatedTrip = await tripModel.findByIdAndUpdate(tripId, { isFinished: true })
-        await userModel.findOneAndUpdate(updatedTrip.client, { $addToSet: { oldtrips: tripId }, $inc: { credit: -updatedTrip.price } })
-        await userModel.findOneAndUpdate(updatedTrip.driver, { $addToSet: { oldtrips: tripId }, $inc: { credit: updatedTrip.price } })
+        const { id } = req.params
+        const updatedTrip = await tripModel.findByIdAndUpdate(id, { isFinished: true }, { new: true })
+        console.log(updatedTrip.client);
+        console.log(updatedTrip.driver);
+        // const aux = await tripModel.findById(tripId);
+        // console.log('====================================');
+        // console.log(aux);
+        // console.log('====================================');
+
+        await userModel.findOneAndUpdate({ _id: updatedTrip.client }, { $addToSet: { oldtrips: id }, $inc: { credit: -updatedTrip.price } })
+        await userModel.findOneAndUpdate({ _id: updatedTrip.driver }, { $addToSet: { oldtrips: id }, $inc: { credit: updatedTrip.price } })
         res.sendStatus(201)
     } catch (err) {
         console.log('Error: ', err)
