@@ -3,9 +3,8 @@ const { signJwt } = require('../utils/jwt.util');
 const bcrypt = require('bcryptjs');
 const SALT = 10;
 
-const SignUpController = (req, res, next) => {
-    console.log('Sign up')
-    const { email, password, username, role, avatar } = req.body;
+const RegistroController = (req, res, next) => {
+    const { email, password, username } = req.body;
     UserModel.findOne({ email })
         .then((user) => {
             if (user) {
@@ -14,7 +13,7 @@ const SignUpController = (req, res, next) => {
             const saltBcrypt = bcrypt.genSaltSync(SALT);
             const hashBcrypt = bcrypt.hashSync(password, saltBcrypt);
 
-            return UserModel.create({ email, password: hashBcrypt, username, role, avatar });
+            return UserModel.create({ email, password: hashBcrypt, username });
         })
         .then(() => {
             res.sendStatus(201);
@@ -30,8 +29,6 @@ const SignUpController = (req, res, next) => {
 
 const LoginController = (req, res, next) => {
     const { email, password } = req.body;
-    console.log(email, password)
-
 
     UserModel.findOne({ email })
         .then((user) => {
@@ -45,6 +42,6 @@ const LoginController = (req, res, next) => {
 };
 
 module.exports = {
-    SignUpController,
+    RegistroController,
     LoginController,
 };
