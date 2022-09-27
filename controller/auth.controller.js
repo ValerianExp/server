@@ -3,7 +3,7 @@ const { signJwt } = require('../utils/jwt.util');
 const bcrypt = require('bcryptjs');
 const SALT = 10;
 
-const RegistroController = (req, res, next) => {
+const SignUpController = (req, res, next) => {
     const { email, password, username } = req.body;
     UserModel.findOne({ email })
         .then((user) => {
@@ -42,6 +42,6 @@ const LoginController = (req, res, next) => {
 };
 
 module.exports = {
-    RegistroController,
+    SignUpController,
     LoginController,
 };
