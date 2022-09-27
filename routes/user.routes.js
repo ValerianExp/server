@@ -3,10 +3,10 @@ const router = require("express").Router();
 const {
     getUser,
     editUser,
-    deleteUser
+    deleteUser,
 } = require('../controller/user.controller');
 
-router.get('/:id', getUser);
+router.get('/me', getUser);
 router.put('/:id', editUser);
 router.delete('/:id', deleteUser);
 
