@@ -12,7 +12,7 @@ const userSchema = new Schema(
     credit: { type: Number, default: 500 },
     oldtrips: [{ type: Schema.Types.ObjectId, ref: 'trips' }],
     role: { type: String, enum: ROLES, default: CLIENT },
-    inProcess: { type: boolean, default: false },
+    inProcess: { type: Boolean, default: false },
     // Just the drivers
     rating: [{ type: Number }],
     carModel: { type: String },
