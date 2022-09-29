@@ -3,7 +3,7 @@ const tripModel = require('../models/Trip.model');
 const userModel = require('../models/User.model');
 
 const getAll = (req, res, next) => {
-    tripModel.find()
+    tripModel.find({ isFinished: false })
         .then((trips) => res.status(200).json(trips))
         .catch(next)
 
@@ -19,7 +19,6 @@ const create = (req, res, next) => {
         price,
         client,
     } = req.body;
-    console.log(req.body);
 
     tripModel
         .create({
@@ -40,22 +39,19 @@ const create = (req, res, next) => {
         .catch(next);
 };
 
-const setDriver = (req, res, next) => {
+const setDriver = async (req, res, next) => {
     try {
         const { driverId } = req.body
         const { id } = req.params;
         if (!isValidObjectId(id)) {
             throw new Error('Error: Invalid mongo ID');
         }
-        console.log(driverId);
-        console.log(id);
-        tripModel
-            .findByIdAndUpdate(id, { driver: driverId }, { new: true })
-            .then((trip) => {
-                console.log('The updated trip is ', trip)
-                res.status(200).json({ trip });
-            })
-            .catch(next);
+
+        const trip = await tripModel.findByIdAndUpdate(id, { driver: driverId }, { new: true })
+        await userModel.findByIdAndUpdate(trip.client[0], { inProcess: true })
+        await userModel.findByIdAndUpdate(trip.driver[0], { inProcess: true })
+        res.status(200).json({ trip });
+
     } catch (err) {
         res.status(400).json({ errorMessage: err.message });
     }
@@ -72,8 +68,8 @@ const finishTrip = async (req, res, next) => {
         // console.log(aux);
         // console.log('====================================');
 
-        await userModel.findOneAndUpdate({ _id: updatedTrip.client }, { $addToSet: { oldtrips: id }, $inc: { credit: -updatedTrip.price } })
-        await userModel.findOneAndUpdate({ _id: updatedTrip.driver }, { $addToSet: { oldtrips: id }, $inc: { credit: updatedTrip.price } })
+        await userModel.findOneAndUpdate({ _id: updatedTrip.client }, { $addToSet: { oldtrips: id }, $inc: { credit: -updatedTrip.price }, inProcess: false })
+        await userModel.findOneAndUpdate({ _id: updatedTrip.driver }, { $addToSet: { oldtrips: id }, $inc: { credit: updatedTrip.price }, inProcess: false })
         res.sendStatus(201)
     } catch (err) {
         console.log('Error: ', err)
