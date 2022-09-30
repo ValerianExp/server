@@ -3,8 +3,45 @@ const tripModel = require('../models/Trip.model');
 const userModel = require('../models/User.model');
 
 const getAll = (req, res, next) => {
-    tripModel.find()
-        .then((trips) => res.status(200).json(trips))
+    const { latDriver, lngDriver, maxDistance } = req.query;
+
+    console.log('====================================');
+    console.log(req.body);
+    console.log('====================================');
+
+    // const latDriver = 90;
+    // const lngDriver = 90;
+    tripModel
+        .find({
+            $and: [{
+                from: {
+                    $near: {
+                        $maxDistance: maxDistance / 111.12,
+                        // $maxDistance: 1 / 111.12,
+                        $geometry: {
+                            type: "Point",
+                            coordinates: [latDriver, lngDriver],
+                        }
+                    }
+                }
+            }, { isFinished: false }]
+        })
+        // .populate('client')
+        // .where('driver')
+        // .near({
+        //     center: { type: 'Point', coordinates: [lngDriver, latDriver] },
+        //     maxDistance: 10000,
+        //     spherical: true,
+        // })
+        .populate("client")
+        .then((trips) => {
+            trips.filter((trip) => {
+                if (!trip.isFinished) {
+                    return trip;
+                }
+            });
+            res.status(200).json(trips);
+        })
         .catch(next)
 
     // TODO: Sort by distance
