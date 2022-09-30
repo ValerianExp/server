@@ -1,16 +1,11 @@
 const { isValidObjectId } = require('mongoose');
+const TripModel = require('../models/Trip.model');
 const tripModel = require('../models/Trip.model');
 const userModel = require('../models/User.model');
 
 const getAll = (req, res, next) => {
     const { latDriver, lngDriver, maxDistance } = req.query;
 
-    console.log('====================================');
-    console.log(req.body);
-    console.log('====================================');
-
-    // const latDriver = 90;
-    // const lngDriver = 90;
     tripModel
         .find({
             $and: [{
@@ -26,13 +21,6 @@ const getAll = (req, res, next) => {
                 }
             }, { isFinished: false }]
         })
-        // .populate('client')
-        // .where('driver')
-        // .near({
-        //     center: { type: 'Point', coordinates: [lngDriver, latDriver] },
-        //     maxDistance: 10000,
-        //     spherical: true,
-        // })
         .populate("client")
         .then((trips) => {
             trips.filter((trip) => {
@@ -45,6 +33,7 @@ const getAll = (req, res, next) => {
         .catch(next)
 
     // TODO: Sort by distance
+    // Show unfinished and with no driver(driver.length = 0)
 };
 
 const create = (req, res, next) => {
@@ -70,26 +59,30 @@ const create = (req, res, next) => {
             price,
             client,
         })
-        .then(() => {
-            res.sendStatus(201);
+        .then((trip) => {
+            res.status(201).json(trip);
         })
         .catch(next);
 };
 
 const setDriver = async (req, res, next) => {
     try {
-        const { driverId } = req.body
+        const { driverId } = req.query
         const { id } = req.params;
+        console.log('ID', id)
+        console.log('DRIVERID', driverId)
         if (!isValidObjectId(id)) {
             throw new Error('Error: Invalid mongo ID');
         }
 
-        const trip = await tripModel.findByIdAndUpdate(id, { driver: driverId }, { new: true })
+        const trip = await tripModel.findByIdAndUpdate(id, { $addToSet: { driver: driverId } }, { new: true })
+        console.log('TRIP', trip)
         await userModel.findByIdAndUpdate(trip.client[0], { inProcess: true })
         await userModel.findByIdAndUpdate(trip.driver[0], { inProcess: true })
         res.status(200).json({ trip });
 
     } catch (err) {
+        console.log('Error')
         res.status(400).json({ errorMessage: err.message });
     }
 };
@@ -107,11 +100,21 @@ const finishTrip = async (req, res, next) => {
 
         await userModel.findOneAndUpdate({ _id: updatedTrip.client }, { $addToSet: { oldtrips: id }, $inc: { credit: -updatedTrip.price }, inProcess: false })
         await userModel.findOneAndUpdate({ _id: updatedTrip.driver }, { $addToSet: { oldtrips: id }, $inc: { credit: updatedTrip.price }, inProcess: false })
-        res.sendStatus(201)
+        res.status(201).json(updatedTrip)
     } catch (err) {
         console.log('Error: ', err)
         next(err)
     }
+}
+
+const getTrip = (req, res, next) => {
+    const { tripId } = req.params
+    TripModel.findById(tripId)
+        .then((trip) => res.status(200).json(trip))
+        .catch((err) => {
+            console.log(err)
+            next(err)
+        })
 }
 
 
@@ -120,5 +123,6 @@ module.exports = {
     getAll,
     create,
     setDriver,
-    finishTrip
+    finishTrip,
+    getTrip
 };
