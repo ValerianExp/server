@@ -8,6 +8,7 @@ const getAll = (req, res, next) => {
         .catch(next)
 
     // TODO: Sort by distance
+    // Show unfinished and with no driver(driver.length = 0)
 };
 
 const create = (req, res, next) => {
@@ -41,18 +42,22 @@ const create = (req, res, next) => {
 
 const setDriver = async (req, res, next) => {
     try {
-        const { driverId } = req.body
+        const { driverId } = req.query
         const { id } = req.params;
+        console.log('ID', id)
+        console.log('DRIVERID', driverId)
         if (!isValidObjectId(id)) {
             throw new Error('Error: Invalid mongo ID');
         }
 
-        const trip = await tripModel.findByIdAndUpdate(id, { driver: driverId }, { new: true })
+        const trip = await tripModel.findByIdAndUpdate(id, { $addToSet: { driver: driverId } }, { new: true })
+        console.log('TRIP', trip)
         await userModel.findByIdAndUpdate(trip.client[0], { inProcess: true })
         await userModel.findByIdAndUpdate(trip.driver[0], { inProcess: true })
         res.status(200).json({ trip });
 
     } catch (err) {
+        console.log('Error')
         res.status(400).json({ errorMessage: err.message });
     }
 };
