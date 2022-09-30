@@ -4,7 +4,8 @@ const bcrypt = require('bcryptjs');
 const SALT = 10;
 
 const SignUpController = (req, res, next) => {
-    const { email, password, username, role, carModel } = req.body;
+    const { email, password, username, role, carModel, avatar } = req.body;
+    console.log('el avatar-->', avatar)
     UserModel.findOne({ email })
         .then((user) => {
             if (user) {
@@ -13,7 +14,7 @@ const SignUpController = (req, res, next) => {
             const saltBcrypt = bcrypt.genSaltSync(SALT);
             const hashBcrypt = bcrypt.hashSync(password, saltBcrypt);
 
-            return UserModel.create({ email, password: hashBcrypt, username, role, carModel });
+            return UserModel.create({ email, password: hashBcrypt, username, role, carModel, avatar });
         })
         .then(() => {
             res.sendStatus(201);
