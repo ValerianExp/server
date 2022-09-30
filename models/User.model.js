@@ -1,5 +1,5 @@
 const { Schema, model } = require("mongoose");
-const { ROLES } = require("../const");
+const { ROLES, CLIENT } = require("../const");
 
 const userSchema = new Schema(
   {
@@ -11,9 +11,10 @@ const userSchema = new Schema(
     avatar: { type: String },
     credit: { type: Number, default: 500 },
     oldtrips: [{ type: Schema.Types.ObjectId, ref: 'trips' }],
-    role: { type: String, enum: ROLES },
+    role: { type: String, enum: ROLES, default: CLIENT },
+    inProcess: { type: Boolean, default: false },
     // Just the drivers
-    rating: { type: Number },
+    rating: [{ type: Number }],
     carModel: { type: String },
     carImg: { type: String }
   },
