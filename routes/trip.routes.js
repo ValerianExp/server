@@ -5,11 +5,13 @@ const {
     create,
     setDriver,
     finishTrip,
+    getTrip
 } = require('../controller/trip.controller');
 /**
  * GET
  */
 router.get('/all', getAll);
+router.get('/:tripId', getTrip)
 
 
 /**
