@@ -8,7 +8,9 @@ const userSchema = new Schema(
       type: String, unique: true
     },
     password: { type: String, required: true },
-    avatar: { type: String },
+    avatar: {
+      type: String, default: 'https://www.business2community.com/wp-content/uploads/2017/08/blank-profile-picture-973460_640.png'
+    },
     credit: { type: Number, default: 500 },
     oldtrips: [{ type: Schema.Types.ObjectId, ref: 'trips' }],
     role: { type: String, enum: ROLES, default: CLIENT },

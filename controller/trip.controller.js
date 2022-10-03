@@ -5,13 +5,12 @@ const userModel = require('../models/User.model');
 
 const getAll = (req, res, next) => {
     const { latDriver, lngDriver, maxDistance } = req.query;
-
     tripModel
         .find({
             $and: [{
                 from: {
                     $near: {
-                        $maxDistance: maxDistance / 111.12,
+                        // $maxDistance: maxDistance / 111.12,
                         // $maxDistance: 1 / 111.12,
                         $geometry: {
                             type: "Point",
