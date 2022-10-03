@@ -18,7 +18,8 @@ const userSchema = new Schema(
     // Just the drivers
     rating: [{ type: Number }],
     carModel: { type: String },
-    carImg: { type: String }
+    carImg: { type: String },
+    licensePlate: { type: String }
   },
   {
     // this second object adds extra properties: `createdAt` and `updatedAt`
