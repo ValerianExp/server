@@ -5,10 +5,11 @@ const validateToken = (req, res, next) => {
   const { authorization } = req.headers;
   if (authorization) {
     const token = deleteBearer(authorization);
-    const { sub, email } = verifyJwt(token);
-    req.user = { _id: sub, email };
+    const { sub, email, role } = verifyJwt(token);
+    req.user = { _id: sub, email, role };
   } else {
-    res.sendStatus(401);
+    console.log('401 middleware')
+    res.status(401).json('No authorize');
     return;
   }
 

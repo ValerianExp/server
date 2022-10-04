@@ -15,6 +15,7 @@ const userSchema = new Schema(
     oldtrips: [{ type: Schema.Types.ObjectId, ref: 'trips' }],
     role: { type: String, enum: ROLES, default: CLIENT },
     inProcess: { type: Boolean, default: false },
+    currentTrip: { type: Schema.Types.ObjectId, ref: 'trips' },
     // Just the drivers
     rating: [{ type: Number }],
     carModel: { type: String },

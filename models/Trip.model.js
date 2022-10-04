@@ -5,7 +5,7 @@ const TripSchema = new Schema({
     to: { type: { type: String }, coordinates: [Number] },
     price: { type: Number },
     client: [{ type: Schema.Types.ObjectId, ref: 'users' }],
-    driver: [{ type: Schema.Types.ObjectId, ref: 'users', default: null }],
+    driver: [{ type: Schema.Types.ObjectId, ref: 'users' }],
     isFinished: { type: Boolean, default: false }
 })
 

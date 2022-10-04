@@ -4,7 +4,7 @@ const UserModel = require('../models/User.model');
 
 //TODO: Create a new user, or it is done in the auth controller?
 
-const getUser = (req, res, next) => {
+const getUser = (req, res) => {
     if (req.user) {
         UserModel.findById(req.user._id).select('-password').then((user) => {
             if (user) {

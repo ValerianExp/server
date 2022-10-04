@@ -7,5 +7,5 @@ module.exports = (app) => {
     app.use('/api/user', validateToken, userRoutes);
 
     const tripRoutes = require('./trip.routes')
-    app.use('/api/trip', tripRoutes);
+    app.use('/api/trip', validateToken, tripRoutes);
 }

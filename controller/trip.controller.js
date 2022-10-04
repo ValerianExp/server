@@ -1,6 +1,7 @@
 const { isValidObjectId } = require('mongoose');
-const TripModel = require('../models/Trip.model');
+const { findById } = require('../models/Trip.model');
 const tripModel = require('../models/Trip.model');
+const UserModel = require('../models/User.model');
 const userModel = require('../models/User.model');
 
 const getAll = (req, res, next) => {
@@ -10,6 +11,8 @@ const getAll = (req, res, next) => {
             $and: [{
                 from: {
                     $near: {
+                        // TODO maxdistance
+                        $maxDistance: maxDistance,
                         // $maxDistance: maxDistance / 111.12,
                         // $maxDistance: 1 / 111.12,
                         $geometry: {
@@ -35,81 +38,109 @@ const getAll = (req, res, next) => {
     // Show unfinished and with no driver(driver.length = 0)
 };
 
-const create = (req, res, next) => {
-    const {
-        from_lat,
-        from_lng,
-        to_lat,
-        to_lng,
-        price,
-        client,
-    } = req.body;
+const create = async (req, res, next) => {
+    try {
+        console.log('ROLE', req.user.role)
+        if (req.user.role === 'CLIENT') {
+            const {
+                from_lat,
+                from_lng,
+                to_lat,
+                to_lng,
+                price,
+                client,
+            } = req.body;
 
-    tripModel
-        .create({
-            from: {
-                type: 'Point',
-                coordinates: [from_lng, from_lat],
-            },
-            to: {
-                type: 'Point',
-                coordinates: [to_lng, to_lat]
-            },
-            price,
-            client,
-        })
-        .then((trip) => {
+            const trip = await tripModel.create({
+                from: {
+                    type: 'Point',
+                    coordinates: [from_lng, from_lat],
+                },
+                to: {
+                    type: 'Point',
+                    coordinates: [to_lng, to_lat]
+                },
+                price,
+                client,
+            })
+            await UserModel.findByIdAndUpdate(req.user._id, { currentTrip: trip._id, inProcess: true })
             res.status(201).json(trip);
-        })
-        .catch(next);
+        } else {
+            res.status(401).json({ errorMessage: 'Only clients can create new trips ' })
+        }
+    } catch (err) {
+        res.status(500).json({ errorMessage: 'An error ocurred during the creation' })
+    }
+
 };
 
 const setDriver = async (req, res, next) => {
-    try {
-        const { driverId } = req.query
-        const { id } = req.params;
-        console.log('ID', id)
-        console.log('DRIVERID', driverId)
-        if (!isValidObjectId(id)) {
-            throw new Error('Error: Invalid mongo ID');
+    console.log('ROLE', req.user.role)
+    if (req.user.role === 'DRIVER') {
+        try {
+            const { driverId } = req.query
+            const { id } = req.params;
+            console.log('ID', id)
+            console.log('DRIVERID', driverId)
+            if (!isValidObjectId(id)) {
+                throw new Error('Error: Invalid mongo ID');
+            }
+
+            const trip = await tripModel.findByIdAndUpdate(id, { $addToSet: { driver: driverId } }, { new: true })
+            console.log('TRIP', trip)
+            // TODO updateMany
+            await userModel.findByIdAndUpdate(trip.driver[0], { inProcess: true, currentTrip: trip._id })
+            res.status(200).json({ trip });
+
+        } catch (err) {
+            console.log('Error')
+            res.status(400).json({ errorMessage: err.message });
         }
-
-        const trip = await tripModel.findByIdAndUpdate(id, { $addToSet: { driver: driverId } }, { new: true })
-        console.log('TRIP', trip)
-        await userModel.findByIdAndUpdate(trip.client[0], { inProcess: true })
-        await userModel.findByIdAndUpdate(trip.driver[0], { inProcess: true })
-        res.status(200).json({ trip });
-
-    } catch (err) {
-        console.log('Error')
-        res.status(400).json({ errorMessage: err.message });
+    } else {
+        res.status(401).json({ errorMessage: 'Only driver can accept trips' })
     }
 };
 
 const finishTrip = async (req, res, next) => {
     try {
         const { id } = req.params
-        const updatedTrip = await tripModel.findByIdAndUpdate(id, { isFinished: true }, { new: true })
-        console.log(updatedTrip.client);
-        console.log(updatedTrip.driver);
-        // const aux = await tripModel.findById(tripId);
-        // console.log('====================================');
-        // console.log(aux);
-        // console.log('====================================');
+        const trip = await tripModel.findById(id)
+        console.log(trip)
+        console.log(trip.driver[0]._id)
+        console.log(req.user._id)
+        if (req.user._id === trip.driver[0]._id.toString()) {
+            const updatedTrip = await tripModel.findByIdAndUpdate(id, { isFinished: true }, { new: true })
+            console.log(updatedTrip.client);
+            console.log(updatedTrip.driver);
+            // const aux = await tripModel.findById(tripId);
+            // console.log('====================================');
+            // console.log(aux);
+            // console.log('====================================');
 
-        await userModel.findOneAndUpdate({ _id: updatedTrip.client }, { $addToSet: { oldtrips: id }, $inc: { credit: -updatedTrip.price }, inProcess: false })
-        await userModel.findOneAndUpdate({ _id: updatedTrip.driver }, { $addToSet: { oldtrips: id }, $inc: { credit: updatedTrip.price }, inProcess: false })
-        res.status(201).json(updatedTrip)
+            await userModel.findOneAndUpdate({ _id: updatedTrip.client }, { $addToSet: { oldtrips: id }, $inc: { credit: -updatedTrip.price }, inProcess: false, currentTrip: undefined })
+            await userModel.findOneAndUpdate({ _id: updatedTrip.driver }, { $addToSet: { oldtrips: id }, $inc: { credit: updatedTrip.price }, inProcess: false, currentTrip: undefined })
+            res.status(201).json(updatedTrip)
+        } else {
+            res.status(401).json({ errorMessage: 'Only the driver of the trip can finished it' })
+        }
     } catch (err) {
         console.log('Error: ', err)
         next(err)
     }
+
+
 }
 
 const getTrip = (req, res, next) => {
     const { tripId } = req.params
-    TripModel.findById(tripId)
-        .then((trip) => res.status(200).json(trip))
+    tripModel.findById(tripId)
+        .then((trip) => {
+            if (trip.driver.includes(req.user._id) || trip.client.includes(req.user._id)) {
+                res.status(200).json(trip)
+            } else {
+                res.status(401).json({ errorMessage: 'Only the driver or the client can see the trip' })
+            }
+        })
         .catch((err) => {
             console.log(err)
             next(err)
