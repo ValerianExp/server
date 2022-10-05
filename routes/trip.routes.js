@@ -5,7 +5,8 @@ const {
     create,
     setDriver,
     finishTrip,
-    getTrip
+    getTrip,
+    rateDriver
 } = require('../controller/trip.controller');
 /**
  * GET
@@ -24,5 +25,6 @@ router.post('/new', create);
  */
 router.put('/:id/driver', setDriver);
 router.put('/:id/finish', finishTrip)
+router.put('/:id/ratedriver', rateDriver)
 
 module.exports = router;

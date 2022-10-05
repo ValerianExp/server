@@ -1,7 +1,5 @@
 const { isValidObjectId } = require('mongoose');
-const { findById } = require('../models/Trip.model');
 const tripModel = require('../models/Trip.model');
-const UserModel = require('../models/User.model');
 const userModel = require('../models/User.model');
 
 const getAll = (req, res, next) => {
@@ -21,7 +19,7 @@ const getAll = (req, res, next) => {
                         }
                     }
                 }
-            }, { isFinished: false }]
+            }, { isFinished: false }, { driver: { $size: 0 } }]
         })
         .populate("client")
         .then((trips) => {
@@ -35,7 +33,7 @@ const getAll = (req, res, next) => {
         .catch(next)
 
     // TODO: Sort by distance
-    // Show unfinished and with no driver(driver.length = 0)
+
 };
 
 const create = async (req, res, next) => {
@@ -63,7 +61,7 @@ const create = async (req, res, next) => {
                 price,
                 client,
             })
-            await UserModel.findByIdAndUpdate(req.user._id, { currentTrip: trip._id, inProcess: true })
+            await userModel.findByIdAndUpdate(req.user._id, { currentTrip: trip._id, inProcess: true })
             res.status(201).json(trip);
         } else {
             res.status(401).json({ errorMessage: 'Only clients can create new trips ' })
@@ -104,21 +102,16 @@ const setDriver = async (req, res, next) => {
 const finishTrip = async (req, res, next) => {
     try {
         const { id } = req.params
+        const { rating } = req.query
         const trip = await tripModel.findById(id)
-        console.log(trip)
-        console.log(trip.driver[0]._id)
-        console.log(req.user._id)
         if (req.user._id === trip.driver[0]._id.toString()) {
             const updatedTrip = await tripModel.findByIdAndUpdate(id, { isFinished: true }, { new: true })
-            console.log(updatedTrip.client);
-            console.log(updatedTrip.driver);
-            // const aux = await tripModel.findById(tripId);
-            // console.log('====================================');
-            // console.log(aux);
-            // console.log('====================================');
-
-            await userModel.findOneAndUpdate({ _id: updatedTrip.client }, { $addToSet: { oldtrips: id }, $inc: { credit: -updatedTrip.price }, inProcess: false, currentTrip: undefined })
-            await userModel.findOneAndUpdate({ _id: updatedTrip.driver }, { $addToSet: { oldtrips: id }, $inc: { credit: updatedTrip.price }, inProcess: false, currentTrip: undefined })
+            console.log('TRIP', trip)
+            console.log(updatedTrip.client[0])
+            const client = await userModel.findByIdAndUpdate(updatedTrip.client[0], { $addToSet: { oldtrips: id }, $inc: { credit: -updatedTrip.price }, $push: { rating: rating }, inProcess: false, currentTrip: null }, { new: true })
+            const driver = await userModel.findByIdAndUpdate(updatedTrip.driver[0], { $addToSet: { oldtrips: id }, $inc: { credit: updatedTrip.price }, inProcess: false, currentTrip: null }, { new: true })
+            console.log('Client', client)
+            console.log('Driver', driver)
             res.status(201).json(updatedTrip)
         } else {
             res.status(401).json({ errorMessage: 'Only the driver of the trip can finished it' })
@@ -147,6 +140,28 @@ const getTrip = (req, res, next) => {
         })
 }
 
+const rateDriver = async (req, res, next) => {
+    try {
+        const { id } = req.params
+        const { rating } = req.query
+        console.log(id, rating)
+        const trip = await tripModel.findById(id)
+        console.log(trip)
+        console.log(trip.client[0])
+        console.log((trip.client[0].toString() === req.user._id))
+        if (trip.client[0].toString() === req.user._id) {
+            const driver = await userModel.findByIdAndUpdate(trip.driver[0], { $push: { rating: rating } }, { new: true })
+            console.log('DRIVER', driver)
+            res.sendStatus(200)
+        } else {
+            res.status(401).json({ errorMessage: 'No authorizatinon' })
+        }
+    } catch (err) {
+        console.log(err)
+        next(err)
+    }
+
+}
 
 
 module.exports = {
@@ -154,5 +169,6 @@ module.exports = {
     create,
     setDriver,
     finishTrip,
-    getTrip
+    getTrip,
+    rateDriver
 };

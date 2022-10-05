@@ -16,8 +16,8 @@ const userSchema = new Schema(
     role: { type: String, enum: ROLES, default: CLIENT },
     inProcess: { type: Boolean, default: false },
     currentTrip: { type: Schema.Types.ObjectId, ref: 'trips' },
-    // Just the drivers
     rating: [{ type: Number }],
+    // Just the drivers
     carModel: { type: String },
     carImg: { type: String },
     licensePlate: { type: String }
