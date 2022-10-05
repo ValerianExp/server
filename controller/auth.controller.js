@@ -4,7 +4,8 @@ const bcrypt = require('bcryptjs');
 const SALT = 10;
 
 const SignUpController = (req, res, next) => {
-    const { email, password, username, role, carModel, avatar } = req.body;
+    const { email, password, username, role, carModel } = req.body;
+    const avatar = req.file ? req.file.path : undefined;
     console.log('el avatar-->', avatar)
     UserModel.findOne({ email })
         .then((user) => {
