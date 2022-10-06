@@ -5,9 +5,10 @@ const {
     editUser,
     deleteUser,
 } = require('../controller/user.controller');
+const multerMiddleware = require("../middleware/multer.middleware");
 
 router.get('/me', getUser);
-router.put('/:id', editUser);
+router.put('/:id', multerMiddleware.single('avatar'), editUser);
 router.delete('/:id', deleteUser);
 
 module.exports = router
