@@ -85,11 +85,14 @@ const create = async (req, res, next) => {
 const setDriver = async (req, res, next) => {
     console.log('ROLE', req.user.role)
     try {
+        const { driverId } = req.query
+        const { id } = req.params;
+        const currentTrip = await tripModel.findById(id)
+        console.log('CURRENT TRIP', currentTrip)
+        if (currentTrip.driver.length !== 0) throw new Error('This trip has already been requested by another driver')
         if (req.user.role !== 'DRIVER') throw new Error('Only driver can accept trips')
         if (req.user.inProcess) throw new Error('Cant accept a new trip if your already in one')
         else {
-            const { driverId } = req.query
-            const { id } = req.params;
             console.log('ID', id)
             console.log('DRIVERID', driverId)
             if (!isValidObjectId(id)) {
