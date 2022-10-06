@@ -18,10 +18,13 @@ const getUser = (req, res) => {
     }
 }
 
-const editUser = (req, res, next) => {
+const editUser = async (req, res, next) => {
     try {
         console.log(req.user)
         const { id } = req.params;
+        const { existingImage } = req.body;
+        const avatar = req.file ? req.file.path : existingImage;
+        console.log('el avatar-->', avatar);
         if (id !== req.user._id) {
             throw new Error('Cannot edit another user')
         } else {
@@ -32,8 +35,7 @@ const editUser = (req, res, next) => {
             const {
                 email,
                 username,
-                password,
-                avatar,
+                // password,
                 credit,
                 oldtrips,
                 role,
@@ -42,10 +44,22 @@ const editUser = (req, res, next) => {
                 carImg
             } = req.body;
 
-            UserModel.findByIdAndUpdate(id, {
+            console.log('====================================');
+            console.log('req.user.email', req.user.email);
+            console.log('email', email);
+            console.log('====================================');
+
+            if (req.user.email !== email) {
+                console.log("ENTRA?");
+                const emailRepe = await UserModel.findOne({ email }).select('email');
+                if (emailRepe) {
+                    throw new Error('Email already in use');
+                }
+            }
+
+            await UserModel.findByIdAndUpdate(id, {
                 email,
                 username,
-                password,
                 avatar,
                 credit,
                 oldtrips,
@@ -63,7 +77,7 @@ const editUser = (req, res, next) => {
                 .catch(next);
         }
     } catch (error) {
-        res.status(400).json({ errorMessage: err.message });
+        res.status(400).json({ errorMessage: error.message });
     }
 }
 
