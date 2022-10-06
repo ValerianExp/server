@@ -2,80 +2,92 @@ const { isValidObjectId } = require('mongoose');
 const tripModel = require('../models/Trip.model');
 const userModel = require('../models/User.model');
 
-const getAll = (req, res, next) => {
-    const { latDriver, lngDriver, maxDistance } = req.query;
-    tripModel
-        .find({
-            $and: [{
-                from: {
-                    $near: {
-                        // TODO maxdistance
-                        $maxDistance: maxDistance,
-                        // $maxDistance: maxDistance / 111.12,
-                        // $maxDistance: 1 / 111.12,
-                        $geometry: {
-                            type: "Point",
-                            coordinates: [latDriver, lngDriver],
+const getAll = async (req, res, next) => {
+    try {
+        const { latDriver, lngDriver, maxDistance } = req.query;
+        console.log('LATDRIVER', latDriver)
+        console.log('TYPEOF', typeof latDriver)
+        console.log(latDriver === 'undefined')
+        if (latDriver === 'undefined' || lngDriver === 'undefined') throw new Error('Location invalid, please enable geolocation')
+        const trips = await tripModel
+            .find({
+                $and: [{
+                    from: {
+                        $near: {
+                            // TODO maxdistance
+                            $maxDistance: maxDistance,
+                            // $maxDistance: maxDistance / 111.12,
+                            // $maxDistance: 1 / 111.12,
+                            $geometry: {
+                                type: "Point",
+                                coordinates: [lngDriver, latDriver],
+                            }
                         }
                     }
-                }
-            }, { isFinished: false }, { driver: { $size: 0 } }]
-        })
-        .populate("client")
-        .then((trips) => {
-            trips.filter((trip) => {
-                if (!trip.isFinished) {
-                    return trip;
-                }
-            });
-            res.status(200).json(trips);
-        })
-        .catch(next)
+                }, { isFinished: false }, { driver: { $size: 0 } }]
+            })
+            .populate("client")
+        res.status(200).json(trips);
+        // TODO: Sort by distance
+    } catch (err) {
+        console.log(err.message)
+        // res.json(err)
 
-    // TODO: Sort by distance
+        res.status(401).json({ errorMessage: err.message })
+
+    }
 
 };
 
 const create = async (req, res, next) => {
     try {
         console.log('ROLE', req.user.role)
-        if (req.user.role === 'CLIENT') {
-            const {
-                from_lat,
-                from_lng,
-                to_lat,
-                to_lng,
-                price,
-                client,
-            } = req.body;
+        if (req.user.role !== 'CLIENT') throw new Error(' Only clients can create new trips ')
+        if (req.user.inProcess) throw new Error('Cant request a new trip if you are already in one')
+        if (req.user.credit < 0) throw new Error('Cant book a trip if you have negative credit')
 
-            const trip = await tripModel.create({
-                from: {
-                    type: 'Point',
-                    coordinates: [from_lng, from_lat],
-                },
-                to: {
-                    type: 'Point',
-                    coordinates: [to_lng, to_lat]
-                },
-                price,
-                client,
-            })
-            await userModel.findByIdAndUpdate(req.user._id, { currentTrip: trip._id, inProcess: true })
-            res.status(201).json(trip);
-        } else {
-            res.status(401).json({ errorMessage: 'Only clients can create new trips ' })
-        }
+
+        const {
+            from_lat,
+            from_lng,
+            to_lat,
+            to_lng,
+            price,
+            client,
+        } = req.body;
+
+        const trip = await tripModel.create({
+            from: {
+                type: 'Point',
+                coordinates: [from_lng, from_lat],
+            },
+            to: {
+                type: 'Point',
+                coordinates: [to_lng, to_lat]
+            },
+            price,
+            client,
+        })
+        await userModel.findByIdAndUpdate(req.user._id, { currentTrip: trip._id, inProcess: true })
+        res.status(201).json(trip);
+
+
     } catch (err) {
-        res.status(500).json({ errorMessage: 'An error ocurred during the creation' })
+        console.log(err.message)
+        // res.json(err)
+
+        res.status(401).json({ errorMessage: err.message })
+
     }
 
 };
 
 const setDriver = async (req, res, next) => {
     console.log('ROLE', req.user.role)
-    if (req.user.role === 'DRIVER') {
-        try {
+    try {
+        if (req.user.role !== 'DRIVER') throw new Error('Only driver can accept trips')
+        if (req.user.inProcess) throw new Error('Cant accept a new trip if your already in one')
+        else {
             const { driverId } = req.query
             const { id } = req.params;
             console.log('ID', id)
@@ -90,14 +102,15 @@ const setDriver = async (req, res, next) => {
             await userModel.findByIdAndUpdate(trip.driver[0], { inProcess: true, currentTrip: trip._id })
             res.status(200).json({ trip });
 
-        } catch (err) {
-            console.log('Error')
-            res.status(400).json({ errorMessage: err.message });
         }
-    } else {
-        res.status(401).json({ errorMessage: 'Only driver can accept trips' })
+    } catch (err) {
+        console.log(err.message)
+        // res.json(err)
+
+        res.status(401).json({ errorMessage: err.message })
+
     }
-};
+}
 
 const finishTrip = async (req, res, next) => {
     try {
@@ -127,8 +140,11 @@ const finishTrip = async (req, res, next) => {
 const getTrip = (req, res, next) => {
     const { tripId } = req.params
     tripModel.findById(tripId)
+        .populate({ path: 'client', select: 'username rating avatar ' })
         .then((trip) => {
-            if (trip.driver.includes(req.user._id) || trip.client.includes(req.user._id)) {
+            console.log(trip.client[0]._id)
+            console.log(req.user._id)
+            if (trip.driver[0]?._id.toString() === req.user._id || trip.client[0]._id.toString() === req.user._id) {
                 res.status(200).json(trip)
             } else {
                 res.status(401).json({ errorMessage: 'Only the driver or the client can see the trip' })
@@ -171,4 +187,4 @@ module.exports = {
     finishTrip,
     getTrip,
     rateDriver
-};
+}
