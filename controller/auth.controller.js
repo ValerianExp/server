@@ -4,9 +4,11 @@ const bcrypt = require('bcryptjs');
 const SALT = 10;
 
 const SignUpController = (req, res, next) => {
-    const { email, password, username, role, carModel } = req.body;
+    const { email, password, username, role, carModel, numberPlate } = req.body;
     const avatar = req.file ? req.file.path : undefined;
     console.log('el avatar-->', avatar)
+    console.log(password)
+    if (!email || !password || !username) throw new Error('Email, username and password are required')
     UserModel.findOne({ email })
         .then((user) => {
             if (user) {
@@ -15,7 +17,7 @@ const SignUpController = (req, res, next) => {
             const saltBcrypt = bcrypt.genSaltSync(SALT);
             const hashBcrypt = bcrypt.hashSync(password, saltBcrypt);
 
-            return UserModel.create({ email, password: hashBcrypt, username, role, carModel, avatar });
+            return UserModel.create({ email, password: hashBcrypt, username, role, carModel, avatar, numberPlate });
         })
         .then(() => {
             res.sendStatus(201);
