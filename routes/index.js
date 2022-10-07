@@ -8,4 +8,7 @@ module.exports = (app) => {
 
     const tripRoutes = require('./trip.routes')
     app.use('/api/trip', validateToken, tripRoutes);
+
+    const paymentRoutes = require('./payment.routes')
+    app.use('/api/payment', paymentRoutes);
 }
