@@ -6,8 +6,14 @@ const TripSchema = new Schema({
     price: { type: Number },
     client: [{ type: Schema.Types.ObjectId, ref: 'users' }],
     driver: [{ type: Schema.Types.ObjectId, ref: 'users' }],
-    isFinished: { type: Boolean, default: false }
-})
+    isFinished: { type: Boolean, default: false },
+    passengers: [{ type: Schema.Types.ObjectId, ref: 'users' }]
+},
+    {
+        // this second object adds extra properties: `createdAt` and `updatedAt`
+        timestamps: true,
+        versionKey: false
+    })
 
 TripSchema.index({ from: '2dsphere', to: '2dsphere' });
 // TripSchema.index({ to: '2dsphere' });

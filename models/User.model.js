@@ -17,6 +17,7 @@ const userSchema = new Schema(
     inProcess: { type: Boolean, default: false },
     currentTrip: { type: Schema.Types.ObjectId, ref: 'trips' },
     rating: [{ type: Number }],
+    friends: [{ type: Schema.Types.ObjectId, ref: 'users' }],
     // Just the drivers
     carModel: { type: String },
     carImg: { type: String },

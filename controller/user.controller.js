@@ -1,4 +1,5 @@
 const { isValidObjectId } = require('mongoose');
+const { CLIENT } = require('../const');
 const TripModel = require('../models/Trip.model');
 const UserModel = require('../models/User.model');
 
@@ -6,16 +7,47 @@ const UserModel = require('../models/User.model');
 
 const getUser = (req, res) => {
     if (req.user) {
-        UserModel.findById(req.user._id).select('-password').then((user) => {
-            if (user) {
-                res.status(200).json(user)
-            } else {
-                res.sendStatus(404);
-            }
-        })
+        UserModel.findById(req.user._id)
+            .select('-password')
+            .populate({ path: 'friends', select: 'username rating avatar' })
+            .then((user) => {
+                if (user) {
+                    res.status(200).json(user)
+                } else {
+                    res.sendStatus(404);
+                }
+            })
     } else {
         res.sendStatus(401);
     }
+}
+// TODO manejo de errores de getAllusers y updateFriend
+
+const getAllUsers = async (req, res) => {
+    try {
+        console.log(req.user)
+        if (req.user) {
+            const users = await UserModel.find({ $and: [{ role: CLIENT }, { _id: { $ne: req.user._id } }] })
+            res.status(200).json(users)
+        } else {
+            throw new Error('You need to be logged in to access this part')
+        }
+    } catch (err) {
+        res.status(401).json({ errorMessage: err.message })
+    }
+}
+
+const updateFriend = async (req, res) => {
+    const { id } = req.params
+    const user = await UserModel.findById(req.user._id)
+    const action = user.friends.includes(id) ? '$pull' : '$addToSet'
+    // true if its already a friend / false if its not a friend yet
+
+    const updatedUser = await UserModel.findByIdAndUpdate(req.user._id, { [action]: { friends: id } })
+
+
+    // console.log(updatedUser)
+    res.status(201).json(updatedUser)
 }
 
 const editUser = async (req, res, next) => {
@@ -110,8 +142,12 @@ const deleteUser = (req, res, next) => {
     }
 }
 
+
+
 module.exports = {
     getUser,
     editUser,
-    deleteUser
+    deleteUser,
+    getAllUsers,
+    updateFriend
 };

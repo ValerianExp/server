@@ -56,6 +56,8 @@ const create = async (req, res, next) => {
             client,
         } = req.body;
 
+        // console.log(client)
+
         const trip = await tripModel.create({
             from: {
                 type: 'Point',
@@ -67,12 +69,28 @@ const create = async (req, res, next) => {
             },
             price,
             client,
+            passengers: [req.user._id]
         })
-        await userModel.findByIdAndUpdate(req.user._id, { currentTrip: trip._id, inProcess: true })
-        req.io.emit('newTrips', { newTrip: 'new trip added' })
+        const clients = await Promise.all(
+            trip.client.map(client => {
+                return userModel.findByIdAndUpdate(client, { currentTrip: trip._id, inProcess: true })
+            })
+        )
+        // await userModel.findByIdAndUpdate(req.user._id, { currentTrip: trip._id, inProcess: true })
+        // separate between one client  trips and multiple passengers trips
+        if (clients.length === 1) {
+            // req.io.emit('confirmTrip', { confirmTrip: 'New trip has been confirmed' })
+            console.log('Emit newTrips')
+            req.io.emit('newTrips', { newTrip: { _id: trip._id, client: trip.client } })
+            console.log('Emit newTrips')
+            res.status(201).json(trip);
+        } else {
+            console.log('pendingTrips')
+            req.io.emit('pendingTrips', { newTrip: { _id: trip._id, client: trip.client } })
+            res.status(201).json(trip);
+        }
 
-
-        res.status(201).json(trip);
+        // DRIVERS LISTEN TO CONFIRM TRIPS CLIENTS LISTEN TO NEW TRIPS
 
 
     } catch (err) {
@@ -84,6 +102,62 @@ const create = async (req, res, next) => {
     }
 
 };
+
+const acceptTrip = async (req, res, next) => {
+    try {
+        const { id } = req.params
+        const trip = await tripModel.findByIdAndUpdate(id, { $addToSet: { passengers: req.user._id } }, { new: true })
+            .populate({ path: 'client', select: 'username rating avatar ' })
+        req.io.to(trip._id.toString()).emit('RefreshTrip', { trip })
+        if (trip.client.length === trip.passengers.length) {
+            console.log(req.io)
+            req.io.local.emit('newTrips', { newTrip: { _id: trip._id, client: trip.client } })
+        }
+        console.log(trip)
+        res.status(203).json({ trip })
+    } catch (err) {
+        next(err)
+    }
+
+}
+
+const confirmTrip = (req, res, next) => {
+    req.io.emit('confirmTrip', { confirmTrip: 'New trip has been confirmed' })
+
+}
+
+const cancelTrip = async (req, res, next) => {
+    try {
+        const { id } = req.params
+        const trip = await tripModel.findByIdAndDelete(id)
+        const clients = await Promise.all(
+            trip.client.map(client => {
+                return userModel.findByIdAndUpdate(client, { inProcess: false, currentTrip: null }, { new: true })
+            })
+        )
+        // const client = await userModel.findByIdAndUpdate(trip.client[0], { $addToSet: { oldtrips: id }, $inc: { credit: -trip.price }, $push: { rating: rating }, inProcess: false, currentTrip: null }, { new: true })
+        const driver = await userModel.findByIdAndUpdate(trip.driver[0], { inProcess: false, currentTrip: null }, { new: true })
+        // console.log('Client', clients)
+        // console.log('Driver', driver)
+        // TODO cambiar a === 0
+
+        console.log('ROOM-------------->', trip._id.toString())
+        if (trip.client.length !== trip.passengers.length) {
+            console.log('LIO')
+            req.io.to(trip._id.toString()).emit('RefreshTrip', { message: 'This trip has been cancelled' })
+        } else {
+            req.io.emit('newTrips', { message: 'A trip has been cancelled' })
+            req.io.to(trip._id.toString()).emit('RefreshTrip', { message: 'This trip has been cancelled' })
+            console.log('A trip has been cancelled')
+        }
+
+        res.sendStatus(204)
+
+    }
+    catch (err) {
+        next(err)
+    }
+}
 
 const setDriver = async (req, res, next) => {
     // console.log('ROLE', req.user.role)
@@ -110,7 +184,7 @@ const setDriver = async (req, res, next) => {
             // TODO updateMany
             // console.log('IO: ', req.io)
 
-            req.io.to(trip._id.toString()).emit('RefreshTrip', trip)
+            req.io.to(trip._id.toString()).emit('RefreshTrip', { trip })
             await userModel.findByIdAndUpdate(trip.driver[0], { inProcess: true, currentTrip: trip._id })
             res.status(200).json({ trip });
 
@@ -133,11 +207,16 @@ const finishTrip = async (req, res, next) => {
             const updatedTrip = await tripModel.findByIdAndUpdate(id, { isFinished: true }, { new: true })
             // console.log('TRIP', trip)
             // console.log(updatedTrip.client[0])
-            const client = await userModel.findByIdAndUpdate(updatedTrip.client[0], { $addToSet: { oldtrips: id }, $inc: { credit: -updatedTrip.price }, $push: { rating: rating }, inProcess: false, currentTrip: null }, { new: true })
+            const clients = await Promise.all(
+                updatedTrip.client.map(client => {
+                    return userModel.findByIdAndUpdate(client, { $addToSet: { oldtrips: id }, $inc: { credit: -updatedTrip.price / updatedTrip.client.length }, $push: { rating: rating }, inProcess: false, currentTrip: null }, { new: true })
+                })
+            )
+            // const client = await userModel.findByIdAndUpdate(updatedTrip.client[0], { $addToSet: { oldtrips: id }, $inc: { credit: -updatedTrip.price }, $push: { rating: rating }, inProcess: false, currentTrip: null }, { new: true })
             const driver = await userModel.findByIdAndUpdate(updatedTrip.driver[0], { $addToSet: { oldtrips: id }, $inc: { credit: updatedTrip.price }, inProcess: false, currentTrip: null }, { new: true })
-            // console.log('Client', client)
-            // console.log('Driver', driver)
-            req.io.to(trip._id.toString()).emit('RefreshTrip', updatedTrip)
+            console.log('Client', clients)
+            console.log('Driver', driver)
+            req.io.to(trip._id.toString()).emit('RefreshTrip', { trip: updatedTrip })
             res.status(201).json(updatedTrip)
         } else {
             res.status(401).json({ errorMessage: 'Only the driver of the trip can finished it' })
@@ -156,10 +235,15 @@ const getTrip = (req, res, next) => {
         .populate({ path: 'client', select: 'username rating avatar ' })
         .populate({ path: 'driver', select: 'username rating avatar carModel numberPlate' })
         .then((trip) => {
-            // console.log(trip.client[0]._id)
+            // console.log(trip.client)
             // console.log(req.user._id)
-            console.log(trip)
-            if (trip.driver[0]?._id.toString() === req.user._id || trip.client[0]._id.toString() === req.user._id) {
+            // console.log(trip.client.includes(req.user._id.toString()))
+            const ids = trip.client.map(c => c._id.toString())
+            console.log(ids)
+            console.log(ids.includes(req.user._id.toString()))
+            console.log(req.user._id)
+            // ids.includes(req.user._id.toString())
+            if (trip.driver[0]?._id.toString() === req.user._id || ids.includes(req.user._id)) {
                 res.status(200).json(trip)
             } else {
                 res.status(401).json({ errorMessage: 'Only the driver or the client can see the trip' })
@@ -178,9 +262,10 @@ const rateDriver = async (req, res, next) => {
         // console.log(id, rating)
         const trip = await tripModel.findById(id)
         // console.log(trip)
-        // console.log(trip.client[0])
-        // console.log((trip.client[0].toString() === req.user._id))
-        if (trip.client[0].toString() === req.user._id) {
+        console.log(trip.client)
+        console.log(req.user._id)
+        console.log((trip.client.includes(req.user._id)))
+        if (trip.client.includes(req.user._id)) {
             const driver = await userModel.findByIdAndUpdate(trip.driver[0], { $push: { rating: rating } }, { new: true })
             // console.log('DRIVER', driver)
             res.sendStatus(200)
@@ -201,5 +286,7 @@ module.exports = {
     setDriver,
     finishTrip,
     getTrip,
-    rateDriver
+    rateDriver,
+    cancelTrip,
+    acceptTrip
 }

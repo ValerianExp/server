@@ -6,7 +6,9 @@ const {
     setDriver,
     finishTrip,
     getTrip,
-    rateDriver
+    rateDriver,
+    cancelTrip,
+    acceptTrip
 } = require('../controller/trip.controller');
 /**
  * GET
@@ -26,5 +28,8 @@ router.post('/new', create);
 router.put('/:id/driver', setDriver);
 router.put('/:id/finish', finishTrip)
 router.put('/:id/ratedriver', rateDriver)
+router.put('/:id/accept', acceptTrip)
+
+router.delete('/:id/delete', cancelTrip)
 
 module.exports = router;
